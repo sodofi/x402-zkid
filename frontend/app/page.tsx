@@ -114,6 +114,47 @@ export default function Home() {
 
       const verified = await verifyZKProof(proof)
       setIsVerified(verified)
+      console.log('Proof verification result:', verified)
+      console.log('Proof data:', {
+        walletAddress: proof.walletAddress,
+        domain: proof.domain,
+        method: proof.method,
+        generatedAt: proof.generatedAt,
+        hasProof: !!proof.proof,
+        publicSignalsCount: proof.publicSignals?.length || 0,
+      })
+
+      // Store proof in MongoDB Atlas (always try to store, even if verification fails for now)
+      try {
+        console.log('Attempting to store proof in MongoDB...')
+        const response = await fetch('http://localhost:3001/zkid/proofs', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            walletAddress: proof.walletAddress,
+            domain: proof.domain,
+            method: proof.method,
+            generatedAt: proof.generatedAt,
+            proof: proof.proof,
+            publicSignals: proof.publicSignals,
+          }),
+        })
+
+        console.log('Response status:', response.status, response.statusText)
+
+        if (response.ok) {
+          const result = await response.json()
+          console.log('✅ Proof stored in MongoDB:', result)
+        } else {
+          const error = await response.json().catch(() => ({ error: 'Unknown error' }))
+          console.error('❌ Failed to store proof:', response.status, error)
+        }
+      } catch (storageError) {
+        console.error('❌ Error storing proof to MongoDB:', storageError)
+        // Don't fail the whole flow if storage fails
+      }
     } catch (error) {
       console.error('Failed to generate proof:', error)
       setProofError(

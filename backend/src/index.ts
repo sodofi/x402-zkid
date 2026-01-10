@@ -3,6 +3,7 @@ import cors from 'cors'
 import dotenv from 'dotenv'
 import { isEduDomain, isOrgDomain, getPrice, canNegotiate } from './lib/zkVerifier'
 import { chat, chatStream } from './lib/anthropic'
+import zkidRouter from './zkid/routes'
 
 dotenv.config()
 
@@ -134,6 +135,9 @@ app.post('/unlock', async (req, res) => {
     message: 'Payment received! Here is your data.'
   })
 })
+
+// ZKID proof storage routes
+app.use('/zkid', zkidRouter)
 
 app.listen(PORT, () => {
   console.log(`Backend server running on http://localhost:${PORT}`)

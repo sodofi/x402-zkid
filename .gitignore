@@ -21,6 +21,7 @@ frontend/public/zk/
 .parcel-cache/
 .turbo/
 .webpack/
+.pnpm-store/
 
 # Environment files
 .env

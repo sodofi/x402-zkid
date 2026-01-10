@@ -3,11 +3,18 @@
 import { usePrivy, useWallets } from '@privy-io/react-auth'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { generateZKProof, verifyZKProof, ProofData } from '@/lib/zkproof'
-import { sendChatStream, unlockData } from '@/lib/api'
+import { sendChatStream } from '@/lib/api'
 import { makePaymentRequest } from '@/lib/x402client'
 import { getBalances, Balances, FAUCETS } from '@/lib/balance'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+
+interface Settlement {
+  transactionHash: string | null
+  network: string
+  explorerUrl: string | null
+  settled: boolean
+}
 
 interface Message {
   role: 'user' | 'assistant'
@@ -19,6 +26,7 @@ interface Message {
   unlocked?: boolean
   data?: string
   isStreaming?: boolean
+  settlement?: Settlement
 }
 
 export default function Home() {
@@ -269,17 +277,28 @@ export default function Home() {
       const result = await makePaymentRequest(embeddedWallet)
 
       if (result.success && result.data) {
-        const responseData = result.data as { data?: { timestamp?: string }; message?: string }
+        const responseData = result.data as {
+          data?: { timestamp?: string }
+          message?: string
+          settlement?: Settlement
+        }
+
+        console.log('[Payment] Settlement response:', responseData.settlement)
+
         setMessages((prev) => prev.map((msg, i) =>
           i === messageIndex
             ? {
                 ...msg,
                 unlocked: true,
-                data: responseData.message || JSON.stringify(responseData.data)
+                data: responseData.message || JSON.stringify(responseData.data),
+                settlement: responseData.settlement
               }
             : msg
         ))
         setCurrentPrice(null)
+
+        // Refresh balances after successful payment
+        fetchBalances()
       } else {
         console.error('Payment failed:', result.error)
         // Show error to user
@@ -490,9 +509,34 @@ export default function Home() {
                               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                 <polyline points="20 6 9 17 4 12" />
                               </svg>
-                              Unlocked
+                              Payment Settled
                             </div>
                             <div className="data-content">{msg.data}</div>
+                            {msg.settlement?.transactionHash && (
+                              <div className="settlement-info">
+                                <div className="tx-hash">
+                                  <span className="tx-label">Transaction:</span>
+                                  <code className="tx-value">
+                                    {msg.settlement.transactionHash.slice(0, 10)}...{msg.settlement.transactionHash.slice(-8)}
+                                  </code>
+                                </div>
+                                {msg.settlement.explorerUrl && (
+                                  <a
+                                    href={msg.settlement.explorerUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="view-tx-btn"
+                                  >
+                                    View on Basescan
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                                      <polyline points="15 3 21 3 21 9" />
+                                      <line x1="10" y1="14" x2="21" y2="3" />
+                                    </svg>
+                                  </a>
+                                )}
+                              </div>
+                            )}
                           </div>
                         ) : (
                           <div className="data-locked">

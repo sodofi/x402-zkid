@@ -107,14 +107,69 @@ export async function GET(request: NextRequest) {
     }
 
     if (result.type === "payment-verified") {
-      // Payment was successful - return the actual API response
-      return NextResponse.json({
+      // Payment signature verified - now settle the payment on-chain
+      console.log("[x402] Payment verified, initiating settlement...");
+
+      const settlementResult = await httpServer.processSettlement(
+        result.paymentPayload,
+        result.paymentRequirements
+      );
+
+      if (!settlementResult.success) {
+        console.error("[x402] Settlement failed:", settlementResult.errorReason);
+        return NextResponse.json(
+          {
+            error: "Payment settlement failed",
+            details: settlementResult.errorReason,
+          },
+          { status: 402 }
+        );
+      }
+
+      console.log("[x402] Settlement successful:", settlementResult);
+
+      // Extract transaction hash from settlement response
+      const txHash = settlementResult.transaction;
+      const network = result.paymentRequirements.network;
+
+      // Determine the block explorer URL based on network
+      const getExplorerUrl = (network: string, txHash: string) => {
+        if (network === "eip155:84532") {
+          // Base Sepolia
+          return `https://sepolia.basescan.org/tx/${txHash}`;
+        } else if (network === "eip155:8453") {
+          // Base Mainnet
+          return `https://basescan.org/tx/${txHash}`;
+        }
+        return null;
+      };
+
+      const explorerUrl = txHash ? getExplorerUrl(network, txHash) : null;
+
+      // Build response with settlement headers
+      const responseData = {
         success: true,
-        message: "Payment accepted and verified",
+        message: "Payment settled successfully",
         data: {
-          // Your actual API response data here
           timestamp: new Date().toISOString(),
         },
+        settlement: {
+          transactionHash: txHash || null,
+          network: network,
+          explorerUrl: explorerUrl,
+          settled: true,
+        },
+      };
+
+      // Include settlement headers from the response
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        ...settlementResult.headers,
+      };
+
+      return new NextResponse(JSON.stringify(responseData), {
+        status: 200,
+        headers,
       });
     }
 

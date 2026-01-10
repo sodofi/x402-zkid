@@ -181,16 +181,24 @@ export default function Home() {
       </header>
 
       <section className="proof-section">
-        <h2>Identity Proof (Groth16)</h2>
+        <div className="proof-header">
+          <h2>Identity Proof</h2>
+          {zkProof && !zkProof.isReal && (
+            <span className="mock-hint">demo</span>
+          )}
+        </div>
         {isGeneratingProof ? (
-          <div style={{ color: 'var(--text-secondary)' }}>
-            <p>Generating ZK proof...</p>
-            <p style={{ fontSize: '0.8rem' }}>This may take a few seconds</p>
+          <div className="proof-loading">
+            <span className="spinner"></span>
+            <div>
+              <p>Generating ZK proof...</p>
+              <p className="proof-loading-hint">This may take a few seconds</p>
+            </div>
           </div>
         ) : proofError ? (
-          <div style={{ color: '#ef4444' }}>
+          <div className="proof-error">
             <p>Error: {proofError}</p>
-            <button className="btn btn-secondary" onClick={generateProof} style={{ marginTop: '1rem' }}>
+            <button className="btn btn-secondary" onClick={generateProof}>
               Retry
             </button>
           </div>
@@ -209,25 +217,11 @@ export default function Home() {
               </div>
               <div className="proof-item">
                 <label>Wallet</label>
-                <span style={{ fontSize: '0.75rem', fontFamily: 'monospace' }}>
-                  {zkProof.walletAddress}
-                </span>
+                <span className="wallet-mono">{zkProof.walletAddress}</span>
               </div>
               <div className="proof-item">
                 <label>Protocol</label>
                 <span>{zkProof.proof.protocol} / {zkProof.proof.curve}</span>
-              </div>
-              <div className="proof-item">
-                <label>Generated</label>
-                <span>
-                  {new Date(zkProof.generatedAt).toLocaleString()}
-                </span>
-              </div>
-              <div className="proof-item">
-                <label>Public Signals</label>
-                <span style={{ fontSize: '0.7rem', fontFamily: 'monospace' }}>
-                  {zkProof.publicSignals.length} signals
-                </span>
               </div>
             </div>
             <div className="proof-actions">
@@ -235,15 +229,19 @@ export default function Home() {
                 Download Proof
               </button>
               <button className="btn btn-secondary" onClick={downloadRawJwt}>
-                Download Raw JWT
+                Download JWT
               </button>
-              <button className="btn btn-secondary" onClick={generateProof}>
-                Regenerate
+              <button
+                className="btn btn-generate"
+                onClick={generateProof}
+                disabled={isGeneratingProof}
+              >
+                {isGeneratingProof ? 'Generating...' : 'Regenerate'}
               </button>
             </div>
           </>
         ) : (
-          <div style={{ color: 'var(--text-secondary)' }}>
+          <div className="proof-waiting">
             <p>Waiting for wallet...</p>
           </div>
         )}

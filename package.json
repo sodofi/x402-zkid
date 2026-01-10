@@ -2,10 +2,11 @@
   "name": "x402-zkid",
   "private": true,
   "scripts": {
-    "dev": "concurrently --names \"frontend,backend\" -c \"cyan,magenta\" \"npm run dev:frontend\" \"npm run dev:backend\"",
-    "dev:frontend": "cd frontend && npm run dev",
-    "dev:backend": "cd backend && npm run dev",
-    "install:all": "npm install && cd frontend && npm install && cd ../backend && npm install"
+    "dev": "concurrently --names \"frontend,backend\" -c \"cyan,magenta\" \"pnpm run dev:frontend\" \"pnpm run dev:backend\"",
+    "dev:frontend": "cd frontend && pnpm run dev",
+    "dev:backend": "cd backend && pnpm run dev",
+    "install:all": "pnpm install && cd frontend && pnpm install && cd ../backend && pnpm install && cd ../circuits && pnpm install",
+    "build:circuits": "cd circuits && pnpm run build"
   },
   "devDependencies": {
     "concurrently": "^9.1.0"

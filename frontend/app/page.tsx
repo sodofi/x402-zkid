@@ -2,7 +2,7 @@
 
 import { usePrivy, useWallets } from '@privy-io/react-auth'
 import { useState, useEffect } from 'react'
-import { generateZKProof, verifyZKProof, ZKProof } from '@/lib/zkproof'
+import { generateZKProof, verifyZKProof, ProofData } from '@/lib/zkproof'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -19,7 +19,7 @@ export default function Home() {
     },
   ])
   const [input, setInput] = useState('')
-  const [zkProof, setZkProof] = useState<ZKProof | null>(null)
+  const [zkProof, setZkProof] = useState<ProofData | null>(null)
   const [isGeneratingProof, setIsGeneratingProof] = useState(false)
   const [proofError, setProofError] = useState<string | null>(null)
   const [isVerified, setIsVerified] = useState<boolean | null>(null)

@@ -22,7 +22,6 @@ Extensions:
 ### Prerequisites
 - Node.js 18+
 - pnpm (`npm install -g pnpm`)
-- circom (`brew install circom` on macOS, or https://docs.circom.io/getting-started/installation/)
 - Privy account (https://dashboard.privy.io)
 
 ### 1. Configure Privy
@@ -40,31 +39,18 @@ cp frontend/.env.example frontend/.env.local
 # Edit frontend/.env.local and add your Privy App ID
 ```
 
-### 3. Build ZK Circuits
+### 3. Run the Project
 
 ```bash
-# Build circom circuits (compiles circuit, generates proving/verification keys)
-make circuits
-
-# This creates:
-# - frontend/public/zk/domainBinding.wasm
-# - frontend/public/zk/domainBinding.zkey
-# - frontend/public/zk/verification_key.json
-```
-
-### 4. Run the Project
-
-```bash
-# Install dependencies, build circuits, and start all services
+# Install dependencies and start all services
 make
 
 # Or run individually
 make install
-make circuits
 make dev
 ```
 
-### 5. Stop Services
+### 4. Stop Services
 
 ```bash
 make stop
@@ -76,18 +62,22 @@ make stop
 x402-zkid/
 ├── Makefile              # Build orchestration
 ├── package.json          # Root package with concurrently
-├── circuits/             # Circom ZK circuits
-│   ├── domainBinding.circom  # Domain binding circuit
-│   ├── build.js          # Circuit compilation script
-│   └── build/            # Compiled artifacts
+├── packages/
+│   ├── circuits/         # ZK circuit definitions (using @zk-email)
+│   │   └── src/
+│   │       └── jwt_domain_verifier.circom
+│   └── zk-helpers/       # Input generation & proof helpers
+│       └── src/
+│           ├── input-generator.ts   # JWT to circuit inputs
+│           ├── proof-generator.ts   # snarkjs proof generation
+│           └── index.ts
 ├── frontend/             # Next.js app (Privy auth, proof generation)
 │   ├── app/
 │   │   ├── page.tsx      # Main page with login/dashboard
 │   │   ├── layout.tsx    # Root layout with providers
 │   │   └── globals.css   # Styles
 │   ├── lib/
-│   │   └── zkproof.ts    # snarkjs proof generation
-│   ├── public/zk/        # Circuit artifacts (wasm, zkey, vkey)
+│   │   └── zkproof.ts    # Browser proof generation
 │   └── components/
 │       └── Providers.tsx # Privy provider wrapper
 └── backend/              # Express.js API (x402, ZKP verification)
@@ -95,7 +85,26 @@ x402-zkid/
         └── index.ts      # Express server
 ```
 
-## Ports
+## ZK Proof Architecture
 
+### Flow
+1. **Frontend**: User signs in via Google OAuth through Privy
+2. **Input Generation**: JWT payload is transformed into circuit inputs
+3. **Proof Generation**: snarkjs generates Groth16 proof in browser
+4. **Verification**: Backend verifies proof using snarkjs
+
+### Public Signals
+The ZK proof exposes three public signals:
+- `domainHash`: Poseidon hash of the email domain (e.g., gmail.com)
+- `nullifier`: Unique identifier for the user (derived from domain + secret)
+- `walletBinding`: Hash binding the wallet address to the domain
+
+### Current State
+The frontend by default generates **mock proofs** with real Poseidon hash computations for the public signals. To enable real proofs:
+1. Compile the circuit with circom (optional - only if you need verifiable proofs)
+2. Generate proving/verification keys
+3. Place artifacts in `frontend/public/zk/`
+
+## Ports
 - Frontend: http://localhost:3000
 - Backend: http://localhost:3001

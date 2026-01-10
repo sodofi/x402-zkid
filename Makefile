@@ -1,6 +1,6 @@
 .PHONY: all install dev stop frontend backend circuits clean
 
-all: install circuits dev
+all: dev
 
 install:
 	pnpm run install:all

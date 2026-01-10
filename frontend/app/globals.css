@@ -167,10 +167,52 @@ body {
   border: 1px solid var(--border);
 }
 
-.proof-section h2 {
+.proof-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.proof-header h2 {
   font-size: 1rem;
   font-weight: 600;
-  margin-bottom: 1rem;
+}
+
+.mock-hint {
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.6;
+}
+
+.proof-loading {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  color: var(--text-secondary);
+}
+
+.proof-loading-hint {
+  font-size: 0.75rem;
+  opacity: 0.7;
+  margin-top: 0.25rem;
+}
+
+.proof-error {
+  color: #ef4444;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.proof-error .btn {
+  align-self: flex-start;
+}
+
+.proof-waiting {
+  color: var(--text-secondary);
 }
 
 .proof-info {
@@ -182,6 +224,7 @@ body {
 .proof-item {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   font-size: 0.875rem;
 }
 
@@ -194,9 +237,30 @@ body {
   color: var(--accent);
 }
 
+.wallet-mono {
+  font-size: 0.7rem !important;
+}
+
 .proof-actions {
   display: flex;
   gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.btn-generate {
+  background-color: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+
+.btn-generate:hover:not(:disabled) {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.btn-generate:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .wallet-address {
@@ -233,4 +297,20 @@ body {
   justify-content: center;
   min-height: 100vh;
   color: var(--text-secondary);
+}
+
+/* Spinner Animation */
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--text-secondary);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }

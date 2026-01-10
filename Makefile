@@ -1,5 +1,6 @@
-.PHONY: all install dev stop frontend backend clean
+.PHONY: all install dev stop frontend backend circom clean clean-circom
 
+# Default: run without circom (uses mock proofs)
 all: install dev
 
 install:
@@ -20,5 +21,20 @@ frontend:
 backend:
 	cd backend && pnpm run dev
 
+# Optional: Build real ZK circuits (requires circom installed)
+# After running this, the app will automatically use real proofs
+circom:
+	@echo "Building ZK circuits (requires circom to be installed)..."
+	@echo "Install circom: brew install circom (macOS)"
+	@echo ""
+	cd circuits && pnpm install && pnpm run build
+
 clean:
 	rm -rf node_modules frontend/node_modules backend/node_modules
+	rm -rf circuits/node_modules circuits/build
+	rm -rf frontend/public/zk
+
+clean-circom:
+	rm -rf circuits/build
+	rm -rf frontend/public/zk
+	@echo "Circom artifacts cleaned. Run 'make circom' to rebuild."

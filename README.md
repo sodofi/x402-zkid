@@ -34,7 +34,6 @@ Extensions:
 ### 2. Set Environment Variables
 
 ```bash
-# Frontend
 cp frontend/.env.example frontend/.env.local
 # Edit frontend/.env.local and add your Privy App ID
 ```
@@ -42,68 +41,84 @@ cp frontend/.env.example frontend/.env.local
 ### 3. Run the Project
 
 ```bash
-# Install dependencies and start all services
-make
-
-# Or run individually
-make install
-make dev
+make          # Install deps and start (uses mock proofs by default)
 ```
 
-### 4. Stop Services
+### 4. (Optional) Enable Real ZK Proofs
+
+To generate cryptographically valid proofs that can be verified on-chain:
+
+```bash
+# Install circom first
+brew install circom    # macOS
+# Or: https://docs.circom.io/getting-started/installation/
+
+# Build circuits
+make circom
+```
+
+After running `make circom`, the app automatically detects the circuit files and generates real proofs.
+
+### 5. Stop Services
 
 ```bash
 make stop
 ```
+
+---
+
+## ZK Proof Modes
+
+### Mock Mode (Default)
+- **No circom required**
+- Generates proof structure with random values
+- Public signals use real Poseidon hashes
+- Good for development and testing UI
+
+### Real Mode (Optional)
+- **Requires circom installed**
+- Run `make circom` to compile circuits
+- Generates cryptographically valid Groth16 proofs
+- Proofs can be verified on-chain
+
+The app automatically detects which mode to use based on whether circuit files exist in `frontend/public/zk/`.
+
+---
 
 ## Project Structure
 
 ```
 x402-zkid/
 ├── Makefile              # Build orchestration
-├── package.json          # Root package with concurrently
-├── packages/
-│   ├── circuits/         # ZK circuit definitions (using @zk-email)
-│   │   └── src/
-│   │       └── jwt_domain_verifier.circom
-│   └── zk-helpers/       # Input generation & proof helpers
-│       └── src/
-│           ├── input-generator.ts   # JWT to circuit inputs
-│           ├── proof-generator.ts   # snarkjs proof generation
-│           └── index.ts
-├── frontend/             # Next.js app (Privy auth, proof generation)
+├── package.json          # Root package
+├── circuits/             # ZK circuits (optional)
+│   ├── jwt_domain_verifier.circom
+│   └── build.js          # Circuit compiler
+├── frontend/             # Next.js app
 │   ├── app/
-│   │   ├── page.tsx      # Main page with login/dashboard
-│   │   ├── layout.tsx    # Root layout with providers
+│   │   ├── page.tsx      # Main page
+│   │   ├── layout.tsx    # Root layout
 │   │   └── globals.css   # Styles
 │   ├── lib/
-│   │   └── zkproof.ts    # Browser proof generation
+│   │   └── zkproof.ts    # Dual-mode proof generation
+│   ├── public/zk/        # Circuit artifacts (after make circom)
 │   └── components/
-│       └── Providers.tsx # Privy provider wrapper
-└── backend/              # Express.js API (x402, ZKP verification)
+│       └── Providers.tsx # Privy wrapper
+└── backend/              # Express.js API
     └── src/
-        └── index.ts      # Express server
+        └── index.ts      # Server
 ```
 
-## ZK Proof Architecture
+---
 
-### Flow
-1. **Frontend**: User signs in via Google OAuth through Privy
-2. **Input Generation**: JWT payload is transformed into circuit inputs
-3. **Proof Generation**: snarkjs generates Groth16 proof in browser
-4. **Verification**: Backend verifies proof using snarkjs
+## Public Signals
 
-### Public Signals
 The ZK proof exposes three public signals:
-- `domainHash`: Poseidon hash of the email domain (e.g., gmail.com)
-- `nullifier`: Unique identifier for the user (derived from domain + secret)
-- `walletBinding`: Hash binding the wallet address to the domain
+- `domainHash`: Poseidon hash of the email domain
+- `nullifier`: Unique identifier (domain + secret)
+- `walletBinding`: Hash binding wallet to domain
 
-### Current State
-The frontend by default generates **mock proofs** with real Poseidon hash computations for the public signals. To enable real proofs:
-1. Compile the circuit with circom (optional - only if you need verifiable proofs)
-2. Generate proving/verification keys
-3. Place artifacts in `frontend/public/zk/`
+---
 
 ## Ports
 - Frontend: http://localhost:3000

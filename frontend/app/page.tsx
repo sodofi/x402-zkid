@@ -3,7 +3,7 @@
 import { usePrivy, useWallets } from '@privy-io/react-auth'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { generateZKProof, verifyZKProof, ProofData } from '@/lib/zkproof'
-import { sendChatStream, unlockData } from '@/lib/api'
+import { sendChatStream, unlockData, getCurrentPrice as fetchPriceFromBackend } from '@/lib/api'
 import { makePaymentRequest } from '@/lib/x402client'
 import { getBalances, Balances, FAUCETS } from '@/lib/balance'
 import ReactMarkdown from 'react-markdown'
@@ -42,6 +42,9 @@ export default function Home() {
   const [copied, setCopied] = useState(false)
   const [balances, setBalances] = useState<Balances | null>(null)
   const [showFundModal, setShowFundModal] = useState(false)
+  const [showGuideModal, setShowGuideModal] = useState(false)
+  const [guideContent, setGuideContent] = useState<{ title: string; markdown: string } | null>(null)
+  const [isGeneratingGuide, setIsGeneratingGuide] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const embeddedWallet = wallets.find((w) => w.walletClientType === 'privy')
@@ -286,12 +289,12 @@ export default function Home() {
 
         console.log('[Payment] Settlement response:', responseData.settlement)
 
+        // Update message to show payment success
         setMessages((prev) => prev.map((msg, i) =>
           i === messageIndex
             ? {
                 ...msg,
                 unlocked: true,
-                data: responseData.message || JSON.stringify(responseData.data),
                 settlement: responseData.settlement
               }
             : msg
@@ -300,6 +303,27 @@ export default function Home() {
 
         // Refresh balances after successful payment
         fetchBalances()
+
+        // Now generate the guide
+        setIsGeneratingGuide(true)
+        try {
+          console.log('[Guide] Starting guide generation...')
+          const guideResult = await unlockData(embeddedWallet.address)
+          console.log('[Guide] Result:', guideResult)
+          if (guideResult.success && guideResult.markdown) {
+            setGuideContent({
+              title: guideResult.title || 'Your Guide',
+              markdown: guideResult.markdown
+            })
+            setShowGuideModal(true)
+          } else {
+            console.error('[Guide] Generation failed:', guideResult.error || 'No markdown returned')
+          }
+        } catch (guideError) {
+          console.error('[Guide] Exception:', guideError)
+        } finally {
+          setIsGeneratingGuide(false)
+        }
       } else {
         console.error('Payment failed:', result.error)
         // Show error to user
@@ -558,7 +582,21 @@ export default function Home() {
                               </svg>
                               Payment Settled
                             </div>
-                            <div className="data-content">{msg.data}</div>
+                            {guideContent && (
+                              <button
+                                className="view-guide-btn"
+                                onClick={() => setShowGuideModal(true)}
+                              >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                  <polyline points="14 2 14 8 20 8" />
+                                  <line x1="16" y1="13" x2="8" y2="13" />
+                                  <line x1="16" y1="17" x2="8" y2="17" />
+                                  <polyline points="10 9 9 9 8 9" />
+                                </svg>
+                                View Your Guide
+                              </button>
+                            )}
                             {msg.settlement?.transactionHash && (
                               <div className="settlement-info">
                                 <div className="tx-hash">
@@ -716,6 +754,36 @@ export default function Home() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Guide Modal */}
+      {showGuideModal && guideContent && (
+        <div className="modal-overlay" onClick={() => setShowGuideModal(false)}>
+          <div className="modal guide-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>{guideContent.title}</h3>
+              <button className="modal-close" onClick={() => setShowGuideModal(false)}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            <div className="modal-body guide-content">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {guideContent.markdown}
+              </ReactMarkdown>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Generating Guide Overlay */}
+      {isGeneratingGuide && (
+        <div className="generating-guide">
+          <div className="spinner" />
+          <p>Generating your guide...</p>
         </div>
       )}
     </div>

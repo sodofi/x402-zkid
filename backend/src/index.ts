@@ -2,7 +2,8 @@ import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
 import { getStartingPrice } from './lib/zkVerifier'
-import { runNegotiationAgent, getCurrentPrice, pricingState } from './agent/negotiationAgent'
+import { runNegotiationAgent, getCurrentPrice, pricingState, getTopic } from './agent/negotiationAgent'
+import { generateMarkdownGuide } from './lib/markdownGenerator'
 import zkidRouter from './zkid/routes'
 
 dotenv.config()
@@ -143,23 +144,38 @@ app.post('/chat', async (req, res) => {
   }
 })
 
-// Unlock/pay for data
+// Unlock/pay for data - generates markdown guide
 app.post('/unlock', async (req, res) => {
   const { walletAddress } = req.body
 
-  // Get the negotiated price for this wallet
+  // Get the negotiated price and topic for this wallet
   const state = pricingState.get(walletAddress)
   const pricePaid = state?.cents || 10
+  const topic = state?.topic || 'general knowledge'
 
-  res.json({
-    success: true,
-    data: 'Here is your premium data! This is the secret information you paid for.',
-    message: `Payment of $${(pricePaid / 100).toFixed(2)} received! Here is your data.`,
-    pricePaid: {
-      cents: pricePaid,
-      dollars: (pricePaid / 100).toFixed(2)
-    }
-  })
+  try {
+    console.log(`[Unlock] Generating markdown guide for topic: "${topic}"`)
+    const guide = await generateMarkdownGuide(topic)
+
+    res.json({
+      success: true,
+      title: guide.title,
+      markdown: guide.content,
+      topic: topic,
+      message: `Payment of $${(pricePaid / 100).toFixed(2)} received! Here's your guide.`,
+      pricePaid: {
+        cents: pricePaid,
+        dollars: (pricePaid / 100).toFixed(2)
+      }
+    })
+  } catch (error) {
+    console.error('[Unlock] Failed to generate guide:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to generate guide',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    })
+  }
 })
 
 // ZKID proof storage routes

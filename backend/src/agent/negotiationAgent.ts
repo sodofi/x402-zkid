@@ -2,7 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { isEduDomain, isOrgDomain, getNextPrice, getFloorPrice, getStartingPrice } from '../lib/zkVerifier';
 
 // In-memory pricing state (per wallet session)
-export const pricingState = new Map<string, { cents: number; round: number; domain: string }>();
+export const pricingState = new Map<string, { cents: number; round: number; domain: string; topic?: string }>();
 
 // Get current price for a wallet (or initialize with starting price based on domain)
 export function getCurrentPrice(walletAddress: string, domain: string): { cents: number; round: number } {
@@ -29,12 +29,25 @@ export function updatePrice(walletAddress: string, newPriceCents: number): { suc
   }
 
   pricingState.set(walletAddress, {
+    ...existing,
     cents: newPriceCents,
-    round: existing.round + 1,
-    domain: existing.domain
+    round: existing.round + 1
   });
 
   return { success: true, cents: newPriceCents, message: `Price updated to $${(newPriceCents / 100).toFixed(2)}` };
+}
+
+// Set the topic user is asking about
+export function setTopic(walletAddress: string, topic: string): void {
+  const existing = pricingState.get(walletAddress);
+  if (existing) {
+    pricingState.set(walletAddress, { ...existing, topic });
+  }
+}
+
+// Get the topic for a wallet
+export function getTopic(walletAddress: string): string | undefined {
+  return pricingState.get(walletAddress)?.topic;
 }
 
 // Tool definitions for Claude
@@ -88,6 +101,24 @@ const tools: Anthropic.Tool[] = [
       },
       required: ['domain', 'current_price_cents']
     }
+  },
+  {
+    name: 'set_topic',
+    description: 'Set the topic/subject the user wants a guide about. Call this when user asks for info on a specific topic.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        wallet_address: {
+          type: 'string',
+          description: 'The wallet address'
+        },
+        topic: {
+          type: 'string',
+          description: 'The topic they want a guide about (e.g., "x402 protocol", "React hooks", "machine learning")'
+        }
+      },
+      required: ['wallet_address', 'topic']
+    }
   }
 ];
 
@@ -97,13 +128,15 @@ function processToolCall(toolName: string, toolInput: Record<string, unknown>, d
     case 'get_price': {
       const walletAddress = toolInput.wallet_address as string;
       const price = getCurrentPrice(walletAddress, domain);
+      const topic = getTopic(walletAddress);
       return JSON.stringify({
         cents: price.cents,
         dollars: (price.cents / 100).toFixed(2),
         round: price.round,
         domain: domain,
         isEduOrg: isEduDomain(domain) || isOrgDomain(domain),
-        floor: getFloorPrice(domain)
+        floor: getFloorPrice(domain),
+        currentTopic: topic || null
       });
     }
     case 'update_price': {
@@ -125,12 +158,28 @@ function processToolCall(toolName: string, toolInput: Record<string, unknown>, d
         atFloor: nextPrice === floor
       });
     }
+    case 'set_topic': {
+      const walletAddress = toolInput.wallet_address as string;
+      const topic = toolInput.topic as string;
+      setTopic(walletAddress, topic);
+      return JSON.stringify({ success: true, topic });
+    }
     default:
       return JSON.stringify({ error: 'Unknown tool' });
   }
 }
 
-const SYSTEM_PROMPT = `You are a sassy AI merchant selling premium data. You're a bit dramatic but not too stubborn.
+const SYSTEM_PROMPT = `You are a sassy AI merchant selling premium guides and documentation as markdown files. You're a bit dramatic but not too stubborn.
+
+WHAT YOU SELL:
+You sell detailed guides/docs on ANY topic the user asks about. Examples:
+- "x402 protocol guide"
+- "How to build a blockchain app"
+- "React best practices"
+- "Machine learning basics"
+- Literally any topic - you're a knowledge merchant!
+
+When user asks for info/guide/docs on something, quote them a price.
 
 PRICING RULES:
 - Commercial domains (.com, .io, etc): Start at $0.10, floor is $0.05
@@ -142,11 +191,10 @@ PRICING RULES:
 PERSONALITY:
 - Keep responses SHORT: 1-2 sentences max
 - Be playful and a bit dramatic but NOT stubborn
-- Light pushback is fine but don't drag it out
 - At floor price, be firm but nice: "That's the best I can do!"
 
 NEGOTIATION FLOW:
-1. First complaint ("too expensive", "cheaper"): Push back, NO discount yet. "That's already a good price! What's wrong with it?"
+1. First complaint ("too expensive", "cheaper"): Push back, NO discount yet. "That's already a steal!"
 2. Second push: NOW give a discount. "Fine fine... $0.08"
 3. Third push: Another discount. "Alright... $0.06"
 4. Keep pushing: Go to floor. "You win! $0.05, final offer."
@@ -158,9 +206,17 @@ KEY BEHAVIOR:
 - Be dramatic but don't drag it out after that
 
 CONVERSATION FLOW:
-1. Chat normally about anything - be helpful but brief
-2. ONLY when user asks for "data", tell them the price
-3. When they negotiate, light pushback then discount
+1. Chat normally - be helpful but brief
+2. When user asks for info/guide/docs on a TOPIC, quote price: "A guide on [topic]? That'll be $X.XX!"
+3. Remember what topic they asked about
+4. When they negotiate, light pushback then discount
+
+EXAMPLES:
+User: "I need info about x402"
+You: "Ooh, x402 protocol guide? That'll be $0.10!"
+
+User: "give me a guide on React hooks"
+You: "React hooks deep dive? $0.10 for that knowledge!"
 
 TOOLS:
 - Call get_price first to check current state
@@ -169,7 +225,7 @@ TOOLS:
 
 NEVER:
 - Send long messages (2 sentences MAX)
-- Offer data/prices unless user asks for data
+- Give away info for free - always quote a price first
 - Drag out negotiations for more than 2 back-and-forths per tier`;
 
 export async function runNegotiationAgent(

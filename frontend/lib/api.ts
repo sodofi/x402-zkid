@@ -22,9 +22,12 @@ interface StreamChunk {
 
 interface UnlockResponse {
   success: boolean
-  data: string
+  title?: string
+  markdown?: string
+  topic?: string
   message: string
   pricePaid?: CurrentPrice
+  error?: string
 }
 
 export async function sendChat(

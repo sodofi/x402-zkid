@@ -2,7 +2,11 @@
 
 **Identity-aware payments, privacy-first.**
 
+Jay Yu, Sophia Dew, Mahi Jariwala, Bek Hamit
+
 An AI-powered payment system where your identity determines your price — but your identity stays private.
+
+![Architecture](architecture.png)
 
 ---
 
@@ -37,7 +41,7 @@ When a price is agreed, payment settles instantly via the x402 protocol using US
 - **Authentication**: Privy (Google OAuth + embedded wallets)
 - **ZK Proofs**: Circom, snarkjs, Groth16
 - **Payments**: x402 protocol, USDC on Base Sepolia
-- **AI**: Fireworks AI (Llama 3.1)
+- **AI**: Claude (Anthropic) with tool use for agentic negotiation
 
 ---
 

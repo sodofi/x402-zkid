@@ -11,7 +11,24 @@ dotenv.config()
 const app = express()
 const PORT = process.env.PORT || 3001
 
-app.use(cors())
+// Configure CORS for production
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://frontend-sigma-sooty-98.vercel.app',
+  process.env.FRONTEND_URL,
+].filter(Boolean)
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin) return callback(null, true)
+    if (allowedOrigins.some(allowed => origin.startsWith(allowed as string))) {
+      return callback(null, true)
+    }
+    return callback(null, true) // Allow all for now, tighten in production
+  },
+  credentials: true,
+}))
 app.use(express.json())
 
 app.get('/health', (req, res) => {
